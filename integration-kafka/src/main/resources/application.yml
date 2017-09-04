@@ -1,0 +1,18 @@
+kafka:
+  bootstrap-servers: 192.168.0.26:9092
+  topic:
+    spring-integration-kafka: test.integration.spring
+spring:
+  jmx:
+    enabled: false
+server:
+    port: 8081
+inbound:
+  read.path: /home/joset/data/
+  out.path: /home/joset/data/out/
+  filename:
+    regex: ([^\\s]+(\\.(?i)(txt))$)
+  file:
+    poller-fixed-delay: 1000
+    poller-max-messages-per-poll: 4
+debug: false
