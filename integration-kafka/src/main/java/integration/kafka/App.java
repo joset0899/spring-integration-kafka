@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,7 +15,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.expression.common.LiteralExpression;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.core.MessageSource;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.dsl.IntegrationFlows;
@@ -27,7 +34,12 @@ import org.springframework.integration.file.filters.CompositeFileListFilter;
 import org.springframework.integration.file.filters.RegexPatternFileListFilter;
 import org.springframework.integration.file.filters.SimplePatternFileListFilter;
 import org.springframework.integration.handler.LoggingHandler;
+import org.springframework.integration.kafka.outbound.KafkaProducerMessageHandler;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.support.GenericMessage;
@@ -39,6 +51,8 @@ import org.springframework.messaging.support.GenericMessage;
  */
 
 @SpringBootApplication
+@ComponentScan
+@Import(ProducerChanelKafka.class)
 public class App 
 {
 	
@@ -47,6 +61,9 @@ public class App
 	
 	@Autowired
 	public File inboundOutDirectory;
+	
+	@Value("${kafka.bootstrap-servers}")
+	  private String bootstrapServers;
 	
 	private static String SPRING_INTEGRATION_KAFKA_TOPIC = "spring-integration-kafka";
 	
@@ -89,7 +106,7 @@ public class App
                         .maxMessagesPerPoll(maxMessagesPerPoll)
                         ))
         		.handle(new DeleteFileHandler())
-                .transform(Transformers.fileToString())
+                
                 .channel(this.INBOUND_CHANNEL)
                 .get();
     }
@@ -101,15 +118,20 @@ public class App
         return logger;
     }
     
+    public TransformerXlsToObject transformerXlsToObject(){
+    	return new TransformerXlsToObject();
+    }
     
     @Bean
     public IntegrationFlow writeToFile(@Qualifier("fileWritingMessageHandler") MessageHandler fileWritingMessageHandler) {
         return IntegrationFlows.from(this.INBOUND_CHANNEL)
                 //.transform(m -> new StringBuilder((String)m).reverse().toString())
                 .handle(fileWritingMessageHandler)
-                .split(new FileSplitter())
-                .channel("producingChannel")
-                .handle(loggingHandler())
+                .transform(transformerXlsToObject())
+                .split()
+                //.channel("producingChannel2")
+                .handle(kafkaMessageHandler())
+                //.handle(loggingHandler())
                 
                 .get();
     }
@@ -120,6 +142,46 @@ public class App
         handler.setAutoCreateDirectory(true);
         return handler;
     }
+    
+    @Bean
+	  public DirectChannel producingChannel() {
+	    return new DirectChannel();
+	  }
+
+	  @Bean
+	  @ServiceActivator(inputChannel = "producingChannel")
+	  public MessageHandler kafkaMessageHandler() {
+	    KafkaProducerMessageHandler<String, Foo> handler =
+	        new KafkaProducerMessageHandler<>(kafkaTemplate());
+	    handler.setMessageKeyExpression(new LiteralExpression("kafka-integration"));
+	    handler.setTopicExpression(new LiteralExpression(SPRING_INTEGRATION_KAFKA_TOPIC));
+
+	    return handler;
+	  }
+
+	  @Bean
+	  public KafkaTemplate<String, Foo> kafkaTemplate() {
+	    return new KafkaTemplate<>(producerFactory());
+	  }
+
+	  @Bean
+	  public ProducerFactory<String, Foo> producerFactory() {
+	    return new DefaultKafkaProducerFactory<>(producerConfigs());
+	  }
+	  
+	  @Bean
+	  public Map<String, Object> producerConfigs() {
+	    Map<String, Object> properties = new HashMap<>();
+	    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+	    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+	    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+	    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+	    //properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+	    // introduce a delay on the send to allow more messages to accumulate
+	    properties.put(ProducerConfig.LINGER_MS_CONFIG, 1);
+
+	    return properties;
+	  }
     
     /*
     private void runDemo(ConfigurableApplicationContext context) {
@@ -140,5 +202,6 @@ public class App
 	      System.out.println("sent message='{}'"+ message);
 	    }
     	
-    }*/
+    }
+   */
 }

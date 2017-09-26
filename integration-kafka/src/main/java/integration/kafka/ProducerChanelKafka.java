@@ -30,48 +30,12 @@ import org.springframework.integration.dsl.support.Transformers;
 @Configuration
 public class ProducerChanelKafka {
 
-	  @Value("${kafka.bootstrap-servers}")
-	  private String bootstrapServers;
+	  
 
 	  private String INBOUND_PATH="/home/joset/data";
 	  
-	  @Bean
-	  public DirectChannel producingChannel() {
-	    return new DirectChannel();
-	  }
-
-	  @Bean
-	  @ServiceActivator(inputChannel = "producingChannel")
-	  public MessageHandler kafkaMessageHandler() {
-	    KafkaProducerMessageHandler<String, String> handler =
-	        new KafkaProducerMessageHandler<>(kafkaTemplate());
-	    handler.setMessageKeyExpression(new LiteralExpression("kafka-integration"));
-
-	    return handler;
-	  }
-
-	  @Bean
-	  public KafkaTemplate<String, String> kafkaTemplate() {
-	    return new KafkaTemplate<>(producerFactory());
-	  }
-
-	  @Bean
-	  public ProducerFactory<String, String> producerFactory() {
-	    return new DefaultKafkaProducerFactory<>(producerConfigs());
-	  }
 	  
-	  @Bean
-	  public Map<String, Object> producerConfigs() {
-	    Map<String, Object> properties = new HashMap<>();
-	    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-	    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-	    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-	    // introduce a delay on the send to allow more messages to accumulate
-	    properties.put(ProducerConfig.LINGER_MS_CONFIG, 1);
-
-	    return properties;
-	  }
-	  
+	  /*
 	  @Bean 
 	  GenericTransformer<String, Object> transformer() { 
 	   return new GenericTransformer<String, Object>() { 
@@ -87,6 +51,6 @@ public class ProducerChanelKafka {
 	    } 
 	   }; 
 	  } 
-	  
+	  */
 	 
 }

@@ -15,4 +15,9 @@ inbound:
   file:
     poller-fixed-delay: 1000
     poller-max-messages-per-poll: 4
-debug: false
+debug: true
+logging:
+  file: /home/joset/logs/dev_app.log
+  pattern:
+    console: "%d %-5level %logger : %msg%n"
+    file: "%d %-5level [%thread] %logger : %msg%n"

@@ -17,7 +17,7 @@ public class DeleteFileHandler implements GenericHandler<File> {
 		
 		try {
 			
-			fileTmp = File.createTempFile(payload.getName()+"_"+IntegrationMessageHeaderAccessor.SEQUENCE_NUMBER, ".data");
+			fileTmp = File.createTempFile(IntegrationMessageHeaderAccessor.SEQUENCE_NUMBER, ".data");
 			if(payload.renameTo(fileTmp)){
 				System.out.println("moved operation is success.");
 				if(payload.delete()){
